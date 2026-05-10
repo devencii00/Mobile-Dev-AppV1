@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/auth-context";
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Pressable, Alert, Image } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Pressable, Alert, Image, Platform } from "react-native";
 import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
@@ -13,18 +13,17 @@ export default function Register() {
   const [password_confirmation, setPasswordConfirmation] = useState("");
   const [errors, setErrors] = useState<any>({});
   const [profile_image, setProfileImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
 
   
     const pickImage = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permissionResult.granted) {
-      Alert.alert(
-        "Permission required",
-        "Permission to access the media library is required.",
-      );
-      return;
+    if (Platform.OS !== 'web') {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permission required", "Permission to access the media library is required.");
+        return;
+      }
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -79,6 +78,7 @@ export default function Register() {
     }
 
     setErrors({});
+    setIsLoading(true);
 
    try {
 
@@ -89,12 +89,19 @@ export default function Register() {
       password_confirmation,
       profile_image 
     });
+
+    setIsSuccess(true);
+    setTimeout(() => {
+      router.navigate("/login");
+    }, 2000);
   } catch (e: any) {
     if (e.response && e.response.status === 422) {
       setErrors(e.response.data.errors);
     } else {
       Alert.alert("Error", "Something went wrong.");
     }
+  } finally {
+    setIsLoading(false);
   }
 };
 
@@ -102,6 +109,12 @@ export default function Register() {
     <View className="flex-1 items-center justify-center p-4 bg-gray-100">
       <View className="bg-white shadow-md p-6 w-full gap-4 rounded-xl">
         <Text className="text-xl font-bold text-center">Register Account</Text>
+
+        {isSuccess && (
+          <View className="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400" role="alert">
+            <Text className="font-medium">Account created successfully!</Text>
+          </View>
+        )}
 
      
         <View className="items-center mb-2">
@@ -131,8 +144,8 @@ export default function Register() {
         <TextInput value={password_confirmation} onChangeText={setPasswordConfirmation} className="h-12 px-4 border rounded" placeholder="Confirm Password" secureTextEntry />
         {errors.password_confirmation && <Text className="text-red-500 text-sm">{errors.password_confirmation[0]}</Text>}
 
-        <TouchableOpacity onPress={handleRegistration} className="h-12 rounded-full bg-blue-600 items-center justify-center mt-2">
-          <Text className="text-white font-bold">Create Account</Text>
+        <TouchableOpacity onPress={handleRegistration} disabled={isLoading} className={`h-12 rounded-full bg-blue-600 items-center justify-center mt-2 ${isLoading ? 'opacity-50' : ''}`}>
+          <Text className="text-white font-bold">{isLoading ? 'Creating Account...' : 'Create Account'}</Text>
         </TouchableOpacity>
 
         <Pressable onPress={() => router.navigate("/login")} className="mt-2">

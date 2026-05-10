@@ -1,6 +1,6 @@
 import { useAuth } from "@/contexts/auth-context";
 import { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, Pressable } from "react-native";
+import { View, Text, TextInput, TouchableOpacity, Pressable, Alert } from "react-native";
 import { router } from "expo-router";
 
 
@@ -16,26 +16,18 @@ export default function Login() {
 
   const [errors, setErrors] = useState<{ email?: string[]; password?: string[] }>({});
   const [message, setMessage] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    login({ email, password });
-    const newErrors: { email?: string[]; password?: string[]; } = {};
-
-
-
+  const handleLogin = async () => {
+    const newErrors: { email?: string[]; password?: string[] } = {};
 
     if (!email) {
-      newErrors.email = ["Email is required"];``
+      newErrors.email = ["Email is required"];
     }
-
-
 
     if (!password) {
       newErrors.password = ["Password is required"];
     }
-
-
-
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -43,7 +35,15 @@ export default function Login() {
     }
 
     setErrors({});
-    login({ email, password });
+    setIsLoading(true);
+    try {
+      await login({ email, password });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      Alert.alert("Login Failed", error.response?.data?.message || "Invalid credentials or server error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
 
@@ -71,10 +71,9 @@ export default function Login() {
         /> {errors.password && <Text className="text-red-500 text-sm mt-1">{errors.password[0]}</Text>}
         <TouchableOpacity
           onPress={handleLogin}
-          className="h-12 rounded-full bg-blue-500 items-center justify-center"
-        >
-          <Text className="text-white font-bold">Login</Text>
-
+          disabled={isLoading}
+          className={`h-12 rounded-full bg-blue-500 items-center justify-center ${isLoading ? 'opacity-50' : ''}`}>
+          <Text className="text-white font-bold">{isLoading ? 'Logging in...' : 'Login'}</Text>
         </TouchableOpacity>
 
         <Pressable onPress={() =>

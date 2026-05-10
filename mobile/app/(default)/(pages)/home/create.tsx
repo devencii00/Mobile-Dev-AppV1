@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   Image,
+  Platform,
   Pressable,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -16,17 +17,17 @@ export default function Create() {
   const [title, setTitle] = useState("");
   const [image, setImage] = useState<any>(null);
   const [description, setDescription] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
+  const [errors, setErrors] = useState<any>({});
 
   const pickImage = async () => {
-    const permissionResult =
-      await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-    if (!permissionResult.granted) {
-      Alert.alert(
-        "Permission required",
-        "Permission to access the media library is required.",
-      );
-      return;
+    if (Platform.OS !== 'web') {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permission required", "Permission to access the media library is required.");
+        return;
+      }
     }
 
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -42,33 +43,69 @@ export default function Create() {
   };
 
   const handleCreateBlog = async () => {
+    setIsLoading(true);
+    setErrors({});
     try {
-      axios.post(
-        "/create/blog",
-        { title, image: image?.file, description },
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+      const formData = new FormData();
+      formData.append('title', title);
+      formData.append('description', description);
+      if (image) {
+        const fileType = image.uri.split('.').pop()?.toLowerCase() || 'jpg';
+        if (Platform.OS === 'web') {
+          const response = await fetch(image.uri);
+          const blob = await response.blob();
+          formData.append('image', blob, `blog_image.${fileType}`);
+        } else {
+          formData.append('image', {
+            uri: image.uri,
+            name: `blog_image.${fileType}`,
+            type: `image/${fileType}`,
+          } as any);
+        }
+      }
+
+      await axios.post("/create/blog", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
         },
-      );
-    } catch (error) {
-      console.log(error);
+      });
+
+      setIsSuccess(true);
+      setTimeout(() => {
+        router.navigate("/home");
+      }, 2000);
+    } catch (error: any) {
+      if (error.response && error.response.status === 422) {
+        setErrors(error.response.data.errors);
+      } else {
+        Alert.alert("Error", "Something went wrong.");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <View className="p-4 gap-4">
+      {isSuccess && (
+        <View className="p-4 mb-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400" role="alert">
+          <Text className="font-medium">Blog post created successfully!</Text>
+        </View>
+      )}
       <TextInput
         value={title}
         onChangeText={setTitle}
         className="h-12 px-4 border"
+        placeholder="Title"
       />
+      {errors.title && <Text className="text-red-500 text-sm">{errors.title[0]}</Text>}
       <TextInput
         value={description}
         onChangeText={setDescription}
         className="h-12 px-4 border"
+        placeholder="Description"
       />
+      {errors.description && <Text className="text-red-500 text-sm">{errors.description[0]}</Text>}
       <View>
         <TouchableOpacity
           onPress={pickImage}
@@ -87,9 +124,9 @@ export default function Create() {
       )}
       <TouchableOpacity
         onPress={handleCreateBlog}
-        className="h-12 rounded-full bg-blue-500 items-center justify-center"
-      >
-        <Text className="text-white font-bold">Create Blog</Text>
+        disabled={isLoading}
+        className={`h-12 rounded-full bg-blue-500 items-center justify-center ${isLoading ? 'opacity-50' : ''}`}>
+        <Text className="text-white font-bold">{isLoading ? 'Creating Blog...' : 'Create Blog'}</Text>
       </TouchableOpacity>
         <Pressable onPress={() => router.navigate("/home")} className="mt-2">
                 <Text className="text-blue-500 text-center">Back to home</Text>
