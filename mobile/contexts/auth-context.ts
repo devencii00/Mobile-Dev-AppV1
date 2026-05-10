@@ -22,7 +22,7 @@ interface AuthState {
   login: (data: LoginData) => Promise<void>;
   register: (data:RegisterData) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (data: { name: string; email: string }) => Promise<void>;
+  updateUser: (data: { name: string; email: string; profile_image?: ImagePickerAsset | string | null }) => Promise<void>;
 }
 
 interface RegisterData{
@@ -94,7 +94,30 @@ export const useAuth = create<AuthState>((set, get) => ({
 
   updateUser: async (data) => {
     try {
-      const response = await axios.put("/user", data);
+      const formData = new FormData();
+      formData.append('name', data.name);
+      formData.append('email', data.email);
+
+      if (data.profile_image && typeof data.profile_image !== 'string') {
+        const fileType = data.profile_image.uri.split('.').pop()?.toLowerCase() || 'jpg';
+        
+        if (Platform.OS === 'web') {
+          const response = await fetch(data.profile_image.uri);
+          const blob = await response.blob();
+          formData.append('profile_image', blob, `profile.${fileType}`);
+        } else {
+          formData.append('profile_image', {
+            uri: data.profile_image.uri,
+            name: `profile.${fileType}`,
+            type: `image/${fileType}`,
+          } as any);
+        }
+      }
+
+      const response = await axios.post("/user", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+
       if (response.data.user) {
         set({ user: response.data.user });
       } else {

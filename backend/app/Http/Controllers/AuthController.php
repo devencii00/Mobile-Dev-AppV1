@@ -74,11 +74,18 @@ class AuthController extends Controller
         $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $request->user()->id],
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png'],
         ]);
 
         $user = $request->user();
         $user->name = $request->name;
         $user->email = $request->email;
+
+        if ($request->hasFile('profile_image')) {
+            $image_url = $request->file('profile_image')->store('users', 'public');
+            $user->profile_image = $image_url;
+        }
+
         $user->save();
 
         return response()->json([

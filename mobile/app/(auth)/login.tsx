@@ -11,6 +11,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string[]; password?: string[] }>({});
+  const [errorMessage, setErrorMessage] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,12 +32,22 @@ export default function Login() {
     }
 
     setErrors({});
+    setErrorMessage("");
     setIsLoading(true);
     try {
       await login({ email, password });
     } catch (error: any) {
       console.error("Login error:", error);
-      Alert.alert("Login Failed", error.response?.data?.message || "Invalid credentials or server error");
+      if (error.response && error.response.status === 422) {
+        // Handle validation errors from server
+        if (error.response.data.errors) {
+          setErrors(error.response.data.errors);
+        } else {
+          setErrorMessage(error.response.data.message || "Invalid credentials");
+        }
+      } else {
+        setErrorMessage("Invalid email or password. Please try again.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -51,6 +62,15 @@ export default function Login() {
             <Feather name="check-circle" size={20} color="#16a34a" />
             <Text className="text-sm text-green-700 font-medium flex-1">
               {message}
+            </Text>
+          </View>
+        )}
+
+        {errorMessage && (
+          <View className="p-3 rounded-lg bg-red-50 border border-red-200 flex-row items-center gap-2">
+            <Feather name="alert-circle" size={20} color="#dc2626" />
+            <Text className="text-sm text-red-700 font-medium flex-1">
+              {errorMessage}
             </Text>
           </View>
         )}

@@ -11,7 +11,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
-    Route::put('/user', [AuthController::class, 'updateUser']);
+    Route::post('/user', [AuthController::class, 'updateUser']);
 
     Route::post('/logout', [AuthController::class, 'logout']);
 

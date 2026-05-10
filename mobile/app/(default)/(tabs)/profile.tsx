@@ -3,11 +3,13 @@ import React, { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { router } from "expo-router";
 import { Feather, MaterialIcons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 
 export default function Profile() {
   const { logout, user, updateUser } = useAuth();
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
+  const [profileImage, setProfileImage] = useState<ImagePicker.ImagePickerAsset | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Update local state when user data changes
@@ -18,6 +20,27 @@ export default function Profile() {
     }
   }, [user]);
 
+  const pickImage = async () => {
+    if (Platform.OS !== 'web') {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert("Permission required", "Permission to access the media library is required.");
+        return;
+      }
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 1,
+    });
+
+    if (!result.canceled) {
+      setProfileImage(result.assets[0]);
+    }
+  };
+
   const handleUpdate = async () => {
     if (!name.trim() || !email.trim()) {
       Alert.alert("Error", "Please fill in all fields");
@@ -27,7 +50,12 @@ export default function Profile() {
     const saveChanges = async () => {
       setIsLoading(true);
       try {
-        await updateUser({ name: name.trim(), email: email.trim() });
+        await updateUser({ 
+          name: name.trim(), 
+          email: email.trim(),
+          profile_image: profileImage
+        });
+        setProfileImage(null); // Reset local image state after update
         Alert.alert("Success", "Profile updated successfully!");
       } catch (error: any) {
         console.error("Profile update error:", error);
@@ -73,36 +101,38 @@ export default function Profile() {
   };
 
   return (
-    <ScrollView className="flex-1 bg-gray-50">
+    <ScrollView className="flex-1 bg-white">
       {/* Header */}
       <View className="bg-white px-4 py-3 border-b border-gray-200">
         <View className="flex-row items-center gap-3">
           <TouchableOpacity onPress={() => router.back()}>
             <Feather name="arrow-left" size={24} color="#2563eb" />
           </TouchableOpacity>
-          <Text className="text-xl font-bold text-gray-800">Profile Settings</Text>
+          <Text className="text-xl font-bold text-gray-800">Settings</Text>
         </View>
       </View>
 
       <View className="p-4">
         {/* Profile Image Section */}
         <View className="items-center mb-6">
-          <View className="relative">
+          <TouchableOpacity onPress={pickImage} className="relative">
             <Image
-              className="h-32 w-32 rounded-full border-4 border-white shadow-lg"
+              className="h-40 w-40 rounded-full border-4 border-blue-50"
               source={{
-                uri: user?.profile_image 
-                  ? (user.profile_image.startsWith('http') 
-                      ? user.profile_image 
-                      : `http://127.0.0.1:8000/storage/${user.profile_image}`)
-                  : 'https://via.placeholder.com/150',
+                uri: profileImage 
+                  ? profileImage.uri 
+                  : (user?.profile_image 
+                      ? (user.profile_image.startsWith('http') 
+                          ? user.profile_image 
+                          : `http://127.0.0.1:8000/storage/${user.profile_image}`)
+                      : 'https://via.placeholder.com/150'),
               }}
             />
-            <View className="absolute bottom-0 right-0 bg-blue-500 rounded-full p-2 border-2 border-white">
-              <Feather name="camera" size={14} color="white" />
+            <View className="absolute bottom-0 right-0 bg-blue-600 p-2 rounded-full border-2 border-white">
+              <Feather name="camera" size={20} color="white" />
             </View>
-          </View>
-          <Text className="text-gray-600 text-sm mt-2">@{user?.name?.toLowerCase().replace(/\s/g, '') || 'username'}</Text>
+          </TouchableOpacity>
+          <Text className="text-gray-500 mt-2 text-sm">Tap to change photo</Text>
         </View>
 
         {/* User Info Card */}
